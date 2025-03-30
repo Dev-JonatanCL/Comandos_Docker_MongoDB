@@ -1,0 +1,92 @@
+Comandos no Docker:
+
+#Inicializa o Cluster:
+docker network create mongoCluster
+
+#Criar instâncias
+docker run -d --rm -p 27017:27017 --name mongo10 --network mongoCluster mongo:5 mongod --replSet myReplicaSet --bind_ip localhost,mongo10
+docker run -d --rm -p 27018:27017 --name mongo20 --network mongoCluster mongo:5 mongod --replSet myReplicaSet --bind_ip localhost,mongo20
+docker run -d --rm -p 27019:27017 --name mongo30 --network mongoCluster mongo:5 mongod --replSet myReplicaSet --bind_ip localhost,mongo30
+docker run -d --rm -p 27020:27017 --name mongo40 --network mongoCluster mongo:5 mongod --replSet myReplicaSet --bind_ip localhost,mongo40
+
+#Entrar em uma instância para iniciar o replica set
+docker exec -it mongo10 mongosh
+
+#Guardar a conexão do Conect to
+
+#Verificar as configurações dos containers
+db.runCommand({hello:1})
+
+#Inicializar o replica set
+rs.initiate({_id: "myReplicaSet", members: [{_id: 0, host: "mongo10"}, {_id: 1, host: "mongo20"}, {_id: 2, host:"mongo30"}, {_id: 3, host: "mongo40"}]})
+
+#Mostrar o status das instâncias
+docker exec -it mongo10 mongosh --eval "rs.status()"
+
+Comandos do MongoDB Compass:
+
+#Conectar usando o endereço do cluster
+
+#Verificar a conexão
+rs.isMaster().primary
+
+#Criar banco de dados
+use empresaDB
+
+#Inserir dados no nó primário
+db.funcionarios.insertOne({ nome: "Jonatan", cargo: "Desenvolvedor", idade: 25 });
+
+#Pesquisar todos os registros
+db.funcionarios.find()
+
+#Ir para o nó secundario utilizando o mesmo endereço, somente trocando o ip
+
+#Pesquisar todos os registros no nó secundario
+use empresaDB
+db.funcionarios.find()
+
+#Fazer a queda de 2 nós secundarios no docker
+docker stop mongo20 mongo30
+
+#Ir novamente para o nó primario e fazer outra inserção
+db.funcionarios.insertOne({ nome: "Antonio", cargo: "Junior", idade: 20 });
+
+#Fazer outra pesquisa através do nó secundario
+db.funcionarios.find()
+
+#Reestabelecer os nós
+docker run -d --rm -p 27018:27017 --name mongo20 --network mongoCluster mongo:5 mongod --replSet myReplicaSet --bind_ip localhost,mongo20
+docker run -d --rm -p 27019:27017 --name mongo30 --network mongoCluster mongo:5 mongod --replSet myReplicaSet --bind_ip localhost,mongo30
+
+#Fazer a queda do nó primario
+docker stop mongo10
+
+#Procurar o novo nó primario
+docker exec -it mongo20 mongosh --eval "rs.status()"
+
+#Tentar inserir no nó primario que caiu, e inserir os dados no novo nó primario
+db.funcionarios.insertOne({ nome: "Murilo", cargo: "dev", idade: 20 });
+
+#Pesquisar os registros no nó secundário
+db.funcionarios.find()
+
+#Reestabelecer o nó
+docker run -d --rm -p 27017:27017 --name mongo10 --network mongoCluster mongo:5 mongod --replSet myReplicaSet --bind_ip localhost,mongo10
+
+#Verificar os nós
+docker exec -it mongo10 mongosh --eval "rs.status()"
+
+#Realizando CRUD
+#Inserindo dados
+db.funcionarios.insertOne({ nome: "Antonio", cargo: "Analista", idade: 22 });
+
+#Pesquisando
+db.funcionarios.find()
+
+#Modificando
+db.funcionarios.updateOne({ nome: "Antonio" }, { $set: { cargo: "Engenheiro de Software" }});
+
+#Deletando
+db.funcionarios.deleteOne({ nome: "Antonio" });
+
+
